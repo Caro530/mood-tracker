@@ -2,50 +2,138 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Mood Tracker</title>
   <link rel="manifest" href="manifest.json">
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-    .hidden { display: none; }
-    textarea, input { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
-    button { background-color: #4CAF50; color: white; padding: 10px 15px; border: none; cursor: pointer; }
-    .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+    :root {
+      --primary: #10B981;
+      --primary-dark: #065F46;
+      --bg: #F3F4F6;
+      --card: #FFFFFF;
+      --text: #1F2937;
+    }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+      margin: 0; padding: 0; background-color: var(--bg); color: var(--text);
+      display: flex; flex-direction: column; height: 100vh;
+    }
+    
+    /* Header */
+    header {
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+      color: white; padding: 20px; text-align: center; font-size: 20px; font-weight: bold;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;
+    }
+
+    /* Main Content Area */
+    main { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 80px; }
+    
+    .hidden { display: none !important; }
+    
+    /* Step-by-Step Screens */
+    .screen { animation: fadeIn 0.3s ease; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    h2 { text-align: center; margin-bottom: 30px; color: var(--text); }
+    
+    /* Mood Selector */
+    .mood-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 30px; }
+    .mood-btn {
+      aspect-ratio: 1; border-radius: 50%; border: none; font-size: 20px; font-weight: bold; color: white;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s; cursor: pointer;
+    }
+    .mood-btn:active { transform: scale(0.9); }
+    /* Colors for 1 to 10 */
+    .m1, .m2 { background: #EF4444; }
+    .m3, .m4 { background: #F97316; }
+    .m5, .m6 { background: #FBBF24; }
+    .m7, .m8 { background: #84CC16; }
+    .m9, .m10 { background: #10B981; }
+    
+    /* Inputs */
+    textarea {
+      width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #D1D5DB;
+      font-size: 16px; box-sizing: border-box; resize: none; background: var(--card);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; font-family: inherit;
+    }
+    textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
+    
+    /* Buttons */
+    .btn {
+      background: var(--primary); color: white; padding: 16px; border-radius: 12px; border: none;
+      font-size: 18px; font-weight: bold; width: 100%; cursor: pointer; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+    }
+    .btn-secondary { background: #E5E7EB; color: #4B5563; margin-top: 10px; box-shadow: none; }
+    
+    /* Cards for History */
+    .card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .card-header { display: flex; justify-content: space-between; border-bottom: 1px solid #E5E7EB; padding-bottom: 10px; margin-bottom: 10px; font-weight: bold; }
+    .mood-badge { background: var(--primary); color: white; padding: 4px 10px; border-radius: 20px; font-size: 14px; }
+    
+    /* Bottom Navigation */
+    nav {
+      position: fixed; bottom: 0; width: 100%; background: var(--card); display: flex;
+      box-shadow: 0 -4px 10px rgba(0,0,0,0.05); padding-bottom: env(safe-area-inset-bottom);
+    }
+    .nav-btn { flex: 1; padding: 15px; border: none; background: none; font-size: 16px; font-weight: bold; color: #9CA3AF; cursor: pointer; }
+    .nav-btn.active { color: var(--primary); border-top: 3px solid var(--primary); }
   </style>
 </head>
 <body>
 
-  <h1>My Mood Tracker</h1>
+  <header>My Mood Tracker</header>
+
+  <main>
+    <!-- HISTORY TAB -->
+    <section id="history-tab">
+      <div id="summary-view" class="card"></div>
+      <div id="entries-list"></div>
+    </section>
+
+    <!-- LOG MOOD TAB (WIZARD) -->
+    <section id="form-tab" class="hidden">
+      
+      <!-- Step 1: Mood -->
+      <div id="step-1" class="screen">
+        <h2>How are you feeling right now?</h2>
+        <div class="mood-grid">
+          <button class="mood-btn m1" onclick="selectMood(1)">1</button>
+          <button class="mood-btn m2" onclick="selectMood(2)">2</button>
+          <button class="mood-btn m3" onclick="selectMood(3)">3</button>
+          <button class="mood-btn m4" onclick="selectMood(4)">4</button>
+          <button class="mood-btn m5" onclick="selectMood(5)">5</button>
+          <button class="mood-btn m6" onclick="selectMood(6)">6</button>
+          <button class="mood-btn m7" onclick="selectMood(7)">7</button>
+          <button class="mood-btn m8" onclick="selectMood(8)">8</button>
+          <button class="mood-btn m9" onclick="selectMood(9)">9</button>
+          <button class="mood-btn m10" onclick="selectMood(10)">10</button>
+        </div>
+      </div>
+
+      <!-- Step 2: What Happened -->
+      <div id="step-2" class="screen hidden">
+        <h2>What happened?</h2>
+        <textarea id="happened" rows="5" placeholder="Briefly describe what you are doing or what occurred..."></textarea>
+        <button class="btn" onclick="nextStep(3)">Next</button>
+        <button class="btn btn-secondary" onclick="nextStep(1)">Back</button>
+      </div>
+
+      <!-- Step 3: Why -->
+      <div id="step-3" class="screen hidden">
+        <h2>Why do you feel like this?</h2>
+        <textarea id="why" rows="5" placeholder="Explain why this made you feel a certain way..."></textarea>
+        <button class="btn" onclick="saveEntry()">Save Entry</button>
+        <button class="btn btn-secondary" onclick="nextStep(2)">Back</button>
+      </div>
+
+    </section>
+  </main>
+
   <nav>
-    <button onclick="showTab('form-tab')">Log Mood</button>
-    <button onclick="showTab('history-tab')">History & Calendar</button>
+    <button id="nav-history" class="nav-btn active" onclick="switchTab('history')">History</button>
+    <button id="nav-log" class="nav-btn" onclick="switchTab('log')">Log Mood</button>
   </nav>
-
-  <!-- Log Mood Section -->
-  <section id="form-tab">
-    <h2>How are you feeling?</h2>
-    <label>Mood (1-10):</label>
-    <input type="number" id="mood" min="1" max="10" required>
-
-    <label>What happened?</label>
-    <textarea id="happened" rows="3" required></textarea>
-
-    <label>Why do you feel like this?</label>
-    <textarea id="why" rows="3" required></textarea>
-
-    <button onclick="saveEntry()">Save Entry</button>
-  </section>
-
-  <!-- History & Summary Section -->
-  <section id="history-tab" class="hidden">
-    <h2>History & Summary</h2>
-    <div id="summary-view" class="card">
-      <!-- Summary stats will be injected here -->
-    </div>
-    <div id="entries-list">
-      <!-- Past entries will be injected here -->
-    </div>
-  </section>
 
   <script src="app.js"></script>
 </body>
