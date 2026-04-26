@@ -1,149 +1,229 @@
-// Register Service Worker
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 
-// Splash Screen Logic
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    const splash = document.getElementById('splash-screen');
-    splash.style.opacity = '0';
-    setTimeout(() => splash.style.display = 'none', 500);
-  }, 1200); // Show splash for 1.2 seconds for dramatic effect
-});
-
 let entries = JSON.parse(localStorage.getItem('moodEntries')) || [];
 let currentMood = null;
 
-renderHistory();
+// Calendar State
+let currentDate = new Date();
+let selectedDateString = new Date().toISOString().split('T')[0];
 
+// Gradient mapping for JS coloring
+const colors = {
+  1: "#FF4B4B", 2: "#FF6B3B", 3: "#FF8B2B", 4: "#FFAA1B", 5: "#FFC800",
+  6: "#E1D700", 7: "#C4E500", 8: "#A6F300", 9: "#7CE000", 10: "#58CC02"
+};
+
+// Init
+updateStreak();
+renderCalendar();
+updateStats();
+
+// --- TAB NAVIGATION ---
 function switchTab(tab) {
-  document.getElementById('history-tab').classList.add('hidden');
-  document.getElementById('form-tab').classList.add('hidden');
-  document.getElementById('nav-history').classList.remove('active');
-  document.getElementById('nav-log').classList.remove('active');
+  ['calendar', 'log', 'profile'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.add('hidden');
+    document.getElementById(`nav-${t}`).classList.remove('active');
+  });
   
-  // Hide progress bar on history tab
-  document.getElementById('progress-container').style.visibility = (tab === 'history') ? 'hidden' : 'visible';
+  document.getElementById(`tab-${tab}`).classList.remove('hidden');
+  document.getElementById(`nav-${tab}`).classList.add('active');
 
-  if (tab === 'history') {
-    document.getElementById('history-tab').classList.remove('hidden');
-    document.getElementById('nav-history').classList.add('active');
-    renderHistory();
-  } else {
-    document.getElementById('form-tab').classList.remove('hidden');
-    document.getElementById('nav-log').classList.add('active');
-    nextStep(1); 
+  if (tab === 'calendar') {
+    renderCalendar();
+    updateStats();
+  } else if (tab === 'log') {
+    nextStep(1);
+  } else if (tab === 'profile') {
+    document.getElementById('total-logs').innerText = entries.length;
   }
 }
 
-function nextStep(stepNumber) {
-  document.getElementById('step-1').classList.add('hidden');
-  document.getElementById('step-2').classList.add('hidden');
-  document.getElementById('step-3').classList.add('hidden');
-  
-  // Re-trigger CSS animation
-  const nextScreen = document.getElementById(`step-${stepNumber}`);
-  nextScreen.classList.remove('hidden');
-  nextScreen.style.animation = 'none';
-  nextScreen.offsetHeight; /* trigger reflow */
-  nextScreen.style.animation = null;
-
-  // Update Duolingo Progress Bar
-  const progress = (stepNumber / 3) * 100;
-  document.getElementById('progress-bar').style.width = `${progress}%`;
+// --- WIZARD LOGIC ---
+function nextStep(step) {
+  [1, 2, 3].forEach(s => document.getElementById(`step-${s}`).classList.add('hidden'));
+  document.getElementById(`step-${step}`).classList.remove('hidden');
+  document.getElementById('progress-bar').style.width = `${(step / 3) * 100}%`;
 }
 
-function selectMood(moodValue) {
-  currentMood = moodValue;
-  // Small delay so user sees the button press animation
-  setTimeout(() => nextStep(2), 200);
+function selectMood(mood) {
+  currentMood = mood;
+  setTimeout(() => nextStep(2), 150);
 }
 
 function saveEntry() {
   const happened = document.getElementById('happened').value.trim();
   const why = document.getElementById('why').value.trim();
   
-  if (!happened || !why) {
-    alert("Don't leave the boxes empty!");
-    return;
-  }
+  if (!happened || !why) return alert("Fill in the text boxes!");
 
-  const entry = {
+  // Use local time for saving to ensure calendar matching is correct
+  const now = new Date();
+  const localDateString = now.getFullYear() + '-' + 
+    String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+    String(now.getDate()).padStart(2, '0');
+
+  entries.push({
     id: Date.now(),
-    date: new Date().toISOString(),
-    mood: currentMood, 
-    happened, 
-    why
-  };
+    date: localDateString, // Store as YYYY-MM-DD
+    timestamp: now.getTime(),
+    mood: currentMood, happened, why
+  });
 
-  entries.push(entry);
   localStorage.setItem('moodEntries', JSON.stringify(entries));
   
-  // Reset Form
   currentMood = null;
   document.getElementById('happened').value = '';
   document.getElementById('why').value = '';
-
-  // Show Success Animation
-  const successScreen = document.getElementById('success-screen');
-  successScreen.classList.remove('hidden');
   
-  setTimeout(() => {
-    successScreen.classList.add('hidden');
-    switchTab('history');
-  }, 1500); // Show "Great Job!" for 1.5 seconds
+  updateStreak();
+  switchTab('calendar');
 }
 
-function renderHistory() {
-  const list = document.getElementById('entries-list');
-  const summary = document.getElementById('summary-view');
-  list.innerHTML = '';
+// --- CALENDAR LOGIC ---
+function changeMonth(dir) {
+  currentDate.setMonth(currentDate.getMonth() + dir);
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
   
-  if (entries.length === 0) {
-    list.innerHTML = `
-      <div style="text-align:center; padding: 40px 20px; color:#AFAFAF; font-weight:800; font-size:18px;">
-        <img src="icon.png" style="width:80px; opacity:0.5; margin-bottom:20px; filter: grayscale(100%);">
-        <br>No entries yet.<br>Start tracking!
+  document.getElementById('month-label').innerText = new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' });
+  
+  const grid = document.getElementById('calendar-grid');
+  grid.innerHTML = '';
+  
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  
+  // Empty slots
+  for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
+  
+  // Days
+  for(let d=1; d<=daysInMonth; d++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    
+    // Calculate average mood for this day
+    const dayLogs = entries.filter(e => e.date === dateStr);
+    let avg = 0;
+    if (dayLogs.length > 0) {
+      const sum = dayLogs.reduce((a, b) => a + parseInt(b.mood), 0);
+      avg = Math.round(sum / dayLogs.length);
+    }
+
+    const isSelected = dateStr === selectedDateString ? 'selected' : '';
+    const hasDataClass = avg > 0 ? 'has-data' : '';
+    const bgStyle = avg > 0 ? `background-color: ${colors[avg]}; border-bottom-color: rgba(0,0,0,0.2);` : '';
+
+    grid.innerHTML += `
+      <div class="day-btn ${hasDataClass} ${isSelected}" style="${bgStyle}" onclick="selectDate('${dateStr}')">
+        ${d}
       </div>`;
-    summary.classList.add('hidden');
+  }
+  
+  selectDate(selectedDateString); // Render logs for selected date
+}
+
+function selectDate(dateStr) {
+  selectedDateString = dateStr;
+  renderCalendar(); // Re-render to move the selection highlight
+  
+  const list = document.getElementById('daily-logs-list');
+  const d = new Date(dateStr);
+  // Add timezone offset fix so local dates show properly
+  const localD = new Date(d.getTime() + Math.abs(d.getTimezoneOffset()*60000));
+  document.getElementById('selected-date-label').innerText = `Logs for ${localD.toLocaleDateString('default', {month:'short', day:'numeric'})}`;
+  
+  const dayLogs = entries.filter(e => e.date === dateStr);
+  
+  if (dayLogs.length === 0) {
+    list.innerHTML = `<p style="text-align:center; color: #AFB0B3; font-weight:800;">No logs for this day.</p>`;
     return;
   }
 
-  summary.classList.remove('hidden');
-  let totalMood = 0;
-  
-  [...entries].reverse().forEach(entry => {
-    totalMood += parseInt(entry.mood);
-    const dateObj = new Date(entry.date);
-    const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const dateStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
-
-    let moodColor = "#58CC02"; // Green
-    if(entry.mood <= 2) moodColor = "#FF4B4B"; // Red
-    else if(entry.mood <= 4) moodColor = "#FF9600"; // Orange
-    else if(entry.mood <= 6) moodColor = "#FFC800"; // Yellow
-
-    list.innerHTML += `
+  list.innerHTML = dayLogs.map(entry => {
+    const time = new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    return `
       <div class="card">
         <div class="card-header">
-          <span style="font-weight: 800; color: #AFAFAF; font-size:16px;">${dateStr} • ${timeStr}</span>
-          <span class="mood-badge" style="background-color: ${moodColor};">Mood: ${entry.mood}</span>
+          <span>${time}</span>
+          <span class="mood-badge" style="background:${colors[entry.mood]}">${entry.mood} / 10</span>
         </div>
-        <p style="font-weight: 800; margin-bottom:5px;">What:</p>
-        <p style="color: #666; margin-top:0;">${entry.happened}</p>
-        <p style="font-weight: 800; margin-bottom:5px; margin-top:15px;">Why:</p>
-        <p style="color: #666; margin-top:0;">${entry.why}</p>
+        <p style="font-weight:800; margin-bottom:5px; margin-top:0;">What happened:</p>
+        <p style="margin-top:0; color:#666;">${entry.happened}</p>
+        <p style="font-weight:800; margin-bottom:5px;">Why:</p>
+        <p style="margin-top:0; color:#666;">${entry.why}</p>
       </div>
     `;
+  }).join('');
+}
+
+// --- VISUAL STATS LOGIC ---
+function updateStats() {
+  const container = document.getElementById('visual-stats');
+  container.innerHTML = '';
+  
+  if(entries.length === 0) {
+    container.innerHTML = `<p style="text-align:center; color: #AFB0B3; font-weight:800;">Log moods to see your data!</p>`;
+    return;
+  }
+
+  // Count frequencies of mood brackets
+  let counts = { 'Low (1-3)': 0, 'Med (4-7)': 0, 'High (8-10)': 0 };
+  let colorsMap = { 'Low (1-3)': '#FF4B4B', 'Med (4-7)': '#FFC800', 'High (8-10)': '#58CC02' };
+  
+  entries.forEach(e => {
+    if(e.mood <= 3) counts['Low (1-3)']++;
+    else if(e.mood <= 7) counts['Med (4-7)']++;
+    else counts['High (8-10)']++;
   });
 
-  const avgMood = (totalMood / entries.length).toFixed(1);
-  summary.innerHTML = `
-    <h3 style="margin-top:0; font-weight:900; color: var(--primary);">Overview</h3>
-    <div style="display:flex; justify-content:space-between; font-weight:800; font-size:18px; color:#AFAFAF;">
-      <span>Total: <span style="color:var(--text);">${entries.length}</span></span>
-      <span>Avg Mood: <span style="color:var(--text);">${avgMood}</span></span>
-    </div>
-  `;
+  const max = Math.max(...Object.values(counts));
+
+  for (let [label, count] of Object.entries(counts)) {
+    const width = max === 0 ? 0 : (count / entries.length) * 100;
+    container.innerHTML += `
+      <div class="stat-row">
+        <div class="stat-label">${label.split(' ')[0]}</div>
+        <div class="stat-bar-bg">
+          <div class="stat-bar-fill" style="width: ${width}%; background: ${colorsMap[label]};"></div>
+        </div>
+        <div style="font-weight:900; width: 30px; text-align:right;">${count}</div>
+      </div>
+    `;
+  }
+}
+
+// --- STREAK LOGIC ---
+function updateStreak() {
+  if (entries.length === 0) return;
+  // A real streak logic checks consecutive days.
+  // For simplicity, if they have an entry today, streak is 1. If yesterday too, 2.
+  const uniqueDates = [...new Set(entries.map(e => e.date))].sort().reverse();
+  let streak = 0;
+  let checkDate = new Date();
+  
+  for (let i = 0; i < uniqueDates.length; i++) {
+    const dStr = checkDate.getFullYear() + '-' + String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + String(checkDate.getDate()).padStart(2, '0');
+    if (uniqueDates.includes(dStr)) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      // If they missed today, but hit yesterday, don't break streak yet
+      if (i === 0) {
+         checkDate.setDate(checkDate.getDate() - 1);
+         const yStr = checkDate.getFullYear() + '-' + String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + String(checkDate.getDate()).padStart(2, '0');
+         if (uniqueDates.includes(yStr)) {
+            streak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+            continue;
+         }
+      }
+      break;
+    }
+  }
+  document.getElementById('streak-count').innerText = streak;
 }
