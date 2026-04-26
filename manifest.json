@@ -4,13 +4,14 @@
   "start_url": "/mood-tracker/",
   "scope": "/mood-tracker/",
   "display": "standalone",
-  "background_color": "#F3F4F6",
-  "theme_color": "#10B981",
+  "background_color": "#FFFFFF",
+  "theme_color": "#58CC02",
   "icons": [
     {
       "src": "icon.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
