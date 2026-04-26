@@ -1,12 +1,20 @@
 {
+  "id": "/mood-tracker/",
   "name": "Mood Tracker",
   "short_name": "MoodTracker",
   "start_url": "/mood-tracker/",
   "scope": "/mood-tracker/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#FFFFFF",
   "theme_color": "#58CC02",
   "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "icon.png",
       "sizes": "512x512",
