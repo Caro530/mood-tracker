@@ -6,17 +6,30 @@ let entries = JSON.parse(localStorage.getItem('moodEntries')) || [];
 let currentMood = null;
 
 let currentDate = new Date();
-let selectedDateString = new Date().toISOString().split('T')[0];
+let selectedDateString = getLocalDateString(new Date());
 
 const colors = {
   1: "#FF4B4B", 2: "#FF6B3B", 3: "#FF8B2B", 4: "#FFAA1B", 5: "#FFC800",
   6: "#E1D700", 7: "#C4E500", 8: "#A6F300", 9: "#7CE000", 10: "#58CC02"
 };
 
+// Initialize
 updateStreak();
 renderCalendar();
 updateStats();
 
+// --- HELPERS ---
+// Safely format Date object to YYYY-MM-DD in LOCAL time
+function getLocalDateString(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+// Safely parse YYYY-MM-DD back to a Date object in LOCAL time
+function parseLocalDateString(dateStr) {
+  const parts = dateStr.split('-');
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+// --- TABS ---
 function switchTab(tab) {
   ['calendar', 'log', 'profile'].forEach(t => {
     document.getElementById(`tab-${t}`).classList.add('hidden');
@@ -36,6 +49,7 @@ function switchTab(tab) {
   }
 }
 
+// --- WIZARD ---
 function nextStep(step) {
   [1, 2, 3].forEach(s => document.getElementById(`step-${s}`).classList.add('hidden'));
   document.getElementById(`step-${step}`).classList.remove('hidden');
@@ -51,30 +65,33 @@ function saveEntry() {
   const happened = document.getElementById('happened').value.trim();
   const why = document.getElementById('why').value.trim();
   
-  if (!happened || !why) return alert("Fill in the text boxes!");
+  if (!happened || !why) return alert("Please fill in both text boxes!");
 
-  const now = new Date();
-  const localDateString = now.getFullYear() + '-' + 
-    String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-    String(now.getDate()).padStart(2, '0');
+  const localDateStr = getLocalDateString(new Date());
 
   entries.push({
     id: Date.now(),
-    date: localDateString, 
-    timestamp: now.getTime(),
+    date: localDateStr, 
+    timestamp: new Date().getTime(),
     mood: currentMood, happened, why
   });
 
   localStorage.setItem('moodEntries', JSON.stringify(entries));
   
+  // Reset Form
   currentMood = null;
   document.getElementById('happened').value = '';
   document.getElementById('why').value = '';
+  
+  // PROACTIVE FIX: Force calendar back to TODAY to immediately show new log
+  selectedDateString = localDateStr;
+  currentDate = new Date(); // Reset calendar view to current month
   
   updateStreak();
   switchTab('calendar');
 }
 
+// --- CALENDAR ---
 function changeMonth(dir) {
   currentDate.setMonth(currentDate.getMonth() + dir);
   renderCalendar();
@@ -96,8 +113,8 @@ function renderCalendar() {
   
   for(let d=1; d<=daysInMonth; d++) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    
     const dayLogs = entries.filter(e => e.date === dateStr);
+    
     let avg = 0;
     if (dayLogs.length > 0) {
       const sum = dayLogs.reduce((a, b) => a + parseInt(b.mood), 0);
@@ -124,8 +141,7 @@ function selectDate(dateStr) {
 
 function updateDailyLogs(dateStr) {
   const list = document.getElementById('daily-logs-list');
-  const d = new Date(dateStr);
-  const localD = new Date(d.getTime() + Math.abs(d.getTimezoneOffset()*60000));
+  const localD = parseLocalDateString(dateStr);
   
   document.getElementById('selected-date-label').innerText = `Logs for ${localD.toLocaleDateString('default', {month:'short', day:'numeric'})}`;
   
@@ -157,6 +173,7 @@ function updateDailyLogs(dateStr) {
   }).join('');
 }
 
+// --- STATS ---
 function updateStats() {
   const container = document.getElementById('visual-stats');
   container.innerHTML = '';
@@ -191,29 +208,78 @@ function updateStats() {
   }
 }
 
+// --- BULLETPROOF STREAK LOGIC ---
 function updateStreak() {
-  if (entries.length === 0) return;
+  if (entries.length === 0) {
+    document.getElementById('streak-count').innerText = 0;
+    return;
+  }
+  
+  // Get unique dates sorted newest to oldest
   const uniqueDates = [...new Set(entries.map(e => e.date))].sort().reverse();
+  
+  const todayDate = new Date();
+  const todayStr = getLocalDateString(todayDate);
+  
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = getLocalDateString(yesterdayDate);
+
+  // If most recent log is not today OR yesterday, streak is broken.
+  if (uniqueDates[0] !== todayStr && uniqueDates[0] !== yesterdayStr) {
+    document.getElementById('streak-count').innerText = 0;
+    return;
+  }
+
   let streak = 0;
   let checkDate = new Date();
   
+  // If first log is yesterday, start counting backwards from yesterday
+  if (uniqueDates[0] === yesterdayStr) {
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
+
   for (let i = 0; i < uniqueDates.length; i++) {
-    const dStr = checkDate.getFullYear() + '-' + String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + String(checkDate.getDate()).padStart(2, '0');
-    if (uniqueDates.includes(dStr)) {
+    const expectedStr = getLocalDateString(checkDate);
+    if (uniqueDates[i] === expectedStr) {
       streak++;
-      checkDate.setDate(checkDate.getDate() - 1);
+      checkDate.setDate(checkDate.getDate() - 1); // Step back 1 day
     } else {
-      if (i === 0) {
-         checkDate.setDate(checkDate.getDate() - 1);
-         const yStr = checkDate.getFullYear() + '-' + String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + String(checkDate.getDate()).padStart(2, '0');
-         if (uniqueDates.includes(yStr)) {
-            streak++;
-            checkDate.setDate(checkDate.getDate() - 1);
-            continue;
-         }
-      }
-      break;
+      break; // Streak broken
     }
   }
+  
   document.getElementById('streak-count').innerText = streak;
+}
+
+// --- SETTINGS MENU ---
+function openSettings() {
+  document.getElementById('settings-modal').classList.add('active');
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('active');
+}
+
+function clearData() {
+  if(confirm("Are you absolutely sure? This will delete all your mood logs permanently!")) {
+    entries = [];
+    localStorage.removeItem('moodEntries');
+    closeSettings();
+    updateStreak();
+    renderCalendar();
+    updateStats();
+    document.getElementById('total-logs').innerText = 0;
+  }
+}
+
+function exportData() {
+  if (entries.length === 0) return alert("You don't have any data to export yet!");
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(entries, null, 2));
+  const downloadAnchorNode = document.createElement('a');
+  downloadAnchorNode.setAttribute("href",     dataStr);
+  downloadAnchorNode.setAttribute("download", "mood-tracker-data.json");
+  document.body.appendChild(downloadAnchorNode); 
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
 }
