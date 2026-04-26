@@ -1,7 +1,8 @@
 {
   "name": "Mood Tracker",
   "short_name": "MoodTracker",
-  "start_url": "./",
+  "start_url": "/mood-tracker/",
+  "scope": "/mood-tracker/",
   "display": "standalone",
   "background_color": "#F3F4F6",
   "theme_color": "#10B981",
