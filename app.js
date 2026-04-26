@@ -1,33 +1,62 @@
-// Register Service Worker for PWA
+// Register Service Worker
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 
-// Request Notification Permission on load
-if (Notification.permission !== 'granted') {
-  Notification.requestPermission();
-}
-
 let entries = JSON.parse(localStorage.getItem('moodEntries')) || [];
+let currentMood = null;
 
-function showTab(tabId) {
-  document.getElementById('form-tab').classList.add('hidden');
+// Initial render
+renderHistory();
+
+// Switch between History and Log tabs
+function switchTab(tab) {
   document.getElementById('history-tab').classList.add('hidden');
-  document.getElementById(tabId).classList.remove('hidden');
-  if(tabId === 'history-tab') renderHistory();
+  document.getElementById('form-tab').classList.add('hidden');
+  
+  document.getElementById('nav-history').classList.remove('active');
+  document.getElementById('nav-log').classList.remove('active');
+
+  if (tab === 'history') {
+    document.getElementById('history-tab').classList.remove('hidden');
+    document.getElementById('nav-history').classList.add('active');
+    renderHistory();
+  } else {
+    document.getElementById('form-tab').classList.remove('hidden');
+    document.getElementById('nav-log').classList.add('active');
+    nextStep(1); // Reset to first step when opening Log
+  }
 }
 
-function saveEntry() {
-  const mood = document.getElementById('mood').value;
-  const happened = document.getElementById('happened').value;
-  const why = document.getElementById('why').value;
+// Wizard Step Navigation
+function nextStep(stepNumber) {
+  document.getElementById('step-1').classList.add('hidden');
+  document.getElementById('step-2').classList.add('hidden');
+  document.getElementById('step-3').classList.add('hidden');
   
-  if (!mood || !happened || !why) return alert("Please fill all fields!");
+  document.getElementById(`step-${stepNumber}`).classList.remove('hidden');
+}
+
+// Step 1: Select Mood
+function selectMood(moodValue) {
+  currentMood = moodValue;
+  nextStep(2); // Automatically go to Step 2
+}
+
+// Final Step: Save
+function saveEntry() {
+  const happened = document.getElementById('happened').value.trim();
+  const why = document.getElementById('why').value.trim();
+  
+  if (!happened || !why) {
+    alert("Please fill out both text boxes!");
+    return;
+  }
 
   const entry = {
     id: Date.now(),
     date: new Date().toISOString(),
-    mood, 
+    mood: currentMood, 
     happened, 
     why
   };
@@ -35,35 +64,53 @@ function saveEntry() {
   entries.push(entry);
   localStorage.setItem('moodEntries', JSON.stringify(entries));
   
-  alert('Saved!');
-  document.getElementById('mood').value = '';
+  // Clear form
+  currentMood = null;
   document.getElementById('happened').value = '';
   document.getElementById('why').value = '';
+
+  // Go back to History
+  switchTab('history');
 }
 
+// Render the History View
 function renderHistory() {
   const list = document.getElementById('entries-list');
   list.innerHTML = '';
   
+  if (entries.length === 0) {
+    list.innerHTML = `<p style="text-align:center; color:#6B7280; margin-top:50px;">No entries yet. Tap 'Log Mood' to start!</p>`;
+    document.getElementById('summary-view').classList.add('hidden');
+    return;
+  }
+
+  document.getElementById('summary-view').classList.remove('hidden');
+  
   let totalMood = 0;
   
-  // Reverse to show newest first
+  // Reverse array to show newest first
   [...entries].reverse().forEach(entry => {
     totalMood += parseInt(entry.mood);
-    const d = new Date(entry.date).toLocaleString();
+    const dateObj = new Date(entry.date);
+    const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateStr = dateObj.toLocaleDateString();
+
     list.innerHTML += `
       <div class="card">
-        <strong>${d} | Mood: ${entry.mood}/10</strong>
-        <p><strong>What happened:</strong> ${entry.happened}</p>
-        <p><strong>Why:</strong> ${entry.why}</p>
+        <div class="card-header">
+          <span>${dateStr} at ${timeStr}</span>
+          <span class="mood-badge">Mood: ${entry.mood}/10</span>
+        </div>
+        <p><strong>What happened:</strong><br>${entry.happened}</p>
+        <p style="margin-top: 10px;"><strong>Why:</strong><br>${entry.why}</p>
       </div>
     `;
   });
 
-  const avgMood = entries.length ? (totalMood / entries.length).toFixed(1) : 0;
+  const avgMood = (totalMood / entries.length).toFixed(1);
   document.getElementById('summary-view').innerHTML = `
-    <h3>Overall Summary</h3>
-    <p>Total Entries: ${entries.length}</p>
-    <p>Average Mood: ${avgMood} / 10</p>
+    <h3 style="margin-top:0">Weekly Summary</h3>
+    <p>Total Check-ins: <strong>${entries.length}</strong></p>
+    <p>Average Mood: <strong>${avgMood} / 10</strong></p>
   `;
 }
