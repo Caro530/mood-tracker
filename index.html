@@ -245,5 +245,19 @@
   </div>
 
   <script src="app.js"></script>
+
+  <script>
+    // Close settings when tapping outside modal content
+    document.addEventListener('click', (e) => {
+      const modal = document.getElementById('settings-modal');
+      if (!modal.classList.contains('active')) return;
+      if (e.target.id === 'settings-modal') closeSettings();
+    });
+
+    // Close settings with Esc key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeSettings();
+    });
+  </script>
 </body>
 </html>
