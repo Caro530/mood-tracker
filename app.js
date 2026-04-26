@@ -66,7 +66,7 @@ function saveEntry() {
 
   entries.push({
     id: Date.now(),
-    date: localDateString, // Store as YYYY-MM-DD
+    date: localDateString, 
     timestamp: now.getTime(),
     mood: currentMood, happened, why
   });
@@ -106,7 +106,6 @@ function renderCalendar() {
   for(let d=1; d<=daysInMonth; d++) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     
-    // Calculate average mood for this day
     const dayLogs = entries.filter(e => e.date === dateStr);
     let avg = 0;
     if (dayLogs.length > 0) {
@@ -124,17 +123,20 @@ function renderCalendar() {
       </div>`;
   }
   
-  selectDate(selectedDateString); // Render logs for selected date
+  // Update the logs below the calendar WITHOUT calling an infinite loop
+  updateDailyLogs(selectedDateString); 
 }
 
 function selectDate(dateStr) {
   selectedDateString = dateStr;
-  renderCalendar(); // Re-render to move the selection highlight
-  
+  renderCalendar(); 
+}
+
+function updateDailyLogs(dateStr) {
   const list = document.getElementById('daily-logs-list');
   const d = new Date(dateStr);
-  // Add timezone offset fix so local dates show properly
   const localD = new Date(d.getTime() + Math.abs(d.getTimezoneOffset()*60000));
+  
   document.getElementById('selected-date-label').innerText = `Logs for ${localD.toLocaleDateString('default', {month:'short', day:'numeric'})}`;
   
   const dayLogs = entries.filter(e => e.date === dateStr);
@@ -171,7 +173,6 @@ function updateStats() {
     return;
   }
 
-  // Count frequencies of mood brackets
   let counts = { 'Low (1-3)': 0, 'Med (4-7)': 0, 'High (8-10)': 0 };
   let colorsMap = { 'Low (1-3)': '#FF4B4B', 'Med (4-7)': '#FFC800', 'High (8-10)': '#58CC02' };
   
@@ -200,8 +201,6 @@ function updateStats() {
 // --- STREAK LOGIC ---
 function updateStreak() {
   if (entries.length === 0) return;
-  // A real streak logic checks consecutive days.
-  // For simplicity, if they have an entry today, streak is 1. If yesterday too, 2.
   const uniqueDates = [...new Set(entries.map(e => e.date))].sort().reverse();
   let streak = 0;
   let checkDate = new Date();
@@ -212,7 +211,6 @@ function updateStreak() {
       streak++;
       checkDate.setDate(checkDate.getDate() - 1);
     } else {
-      // If they missed today, but hit yesterday, don't break streak yet
       if (i === 0) {
          checkDate.setDate(checkDate.getDate() - 1);
          const yStr = checkDate.getFullYear() + '-' + String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + String(checkDate.getDate()).padStart(2, '0');
