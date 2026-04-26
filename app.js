@@ -5,22 +5,18 @@ if ('serviceWorker' in navigator) {
 let entries = JSON.parse(localStorage.getItem('moodEntries')) || [];
 let currentMood = null;
 
-// Calendar State
 let currentDate = new Date();
 let selectedDateString = new Date().toISOString().split('T')[0];
 
-// Gradient mapping for JS coloring
 const colors = {
   1: "#FF4B4B", 2: "#FF6B3B", 3: "#FF8B2B", 4: "#FFAA1B", 5: "#FFC800",
   6: "#E1D700", 7: "#C4E500", 8: "#A6F300", 9: "#7CE000", 10: "#58CC02"
 };
 
-// Init
 updateStreak();
 renderCalendar();
 updateStats();
 
-// --- TAB NAVIGATION ---
 function switchTab(tab) {
   ['calendar', 'log', 'profile'].forEach(t => {
     document.getElementById(`tab-${t}`).classList.add('hidden');
@@ -40,7 +36,6 @@ function switchTab(tab) {
   }
 }
 
-// --- WIZARD LOGIC ---
 function nextStep(step) {
   [1, 2, 3].forEach(s => document.getElementById(`step-${s}`).classList.add('hidden'));
   document.getElementById(`step-${step}`).classList.remove('hidden');
@@ -58,7 +53,6 @@ function saveEntry() {
   
   if (!happened || !why) return alert("Fill in the text boxes!");
 
-  // Use local time for saving to ensure calendar matching is correct
   const now = new Date();
   const localDateString = now.getFullYear() + '-' + 
     String(now.getMonth() + 1).padStart(2, '0') + '-' + 
@@ -81,7 +75,6 @@ function saveEntry() {
   switchTab('calendar');
 }
 
-// --- CALENDAR LOGIC ---
 function changeMonth(dir) {
   currentDate.setMonth(currentDate.getMonth() + dir);
   renderCalendar();
@@ -99,10 +92,8 @@ function renderCalendar() {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   
-  // Empty slots
   for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
   
-  // Days
   for(let d=1; d<=daysInMonth; d++) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     
@@ -123,7 +114,6 @@ function renderCalendar() {
       </div>`;
   }
   
-  // Update the logs below the calendar WITHOUT calling an infinite loop
   updateDailyLogs(selectedDateString); 
 }
 
@@ -142,7 +132,12 @@ function updateDailyLogs(dateStr) {
   const dayLogs = entries.filter(e => e.date === dateStr);
   
   if (dayLogs.length === 0) {
-    list.innerHTML = `<p style="text-align:center; color: #AFB0B3; font-weight:800;">No logs for this day.</p>`;
+    // USING THE ANGRY MASCOT FOR EMPTY STATE
+    list.innerHTML = `
+      <div style="text-align:center; padding: 20px;">
+        <img src="mascot-angry.png" alt="Angry Mascot" style="width: 120px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
+        <p style="color: #AFB0B3; font-weight:900; font-size: 18px; margin-top: 10px;">I'm waiting for your log!</p>
+      </div>`;
     return;
   }
 
@@ -163,7 +158,6 @@ function updateDailyLogs(dateStr) {
   }).join('');
 }
 
-// --- VISUAL STATS LOGIC ---
 function updateStats() {
   const container = document.getElementById('visual-stats');
   container.innerHTML = '';
@@ -198,7 +192,6 @@ function updateStats() {
   }
 }
 
-// --- STREAK LOGIC ---
 function updateStreak() {
   if (entries.length === 0) return;
   const uniqueDates = [...new Set(entries.map(e => e.date))].sort().reverse();
