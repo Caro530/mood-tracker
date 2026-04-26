@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mood Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    .hidden { display: none; }
+    textarea, input { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
+    button { background-color: #4CAF50; color: white; padding: 10px 15px; border: none; cursor: pointer; }
+    .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+
+  <h1>My Mood Tracker</h1>
+  <nav>
+    <button onclick="showTab('form-tab')">Log Mood</button>
+    <button onclick="showTab('history-tab')">History & Calendar</button>
+  </nav>
+
+  <!-- Log Mood Section -->
+  <section id="form-tab">
+    <h2>How are you feeling?</h2>
+    <label>Mood (1-10):</label>
+    <input type="number" id="mood" min="1" max="10" required>
+
+    <label>What happened?</label>
+    <textarea id="happened" rows="3" required></textarea>
+
+    <label>Why do you feel like this?</label>
+    <textarea id="why" rows="3" required></textarea>
+
+    <button onclick="saveEntry()">Save Entry</button>
+  </section>
+
+  <!-- History & Summary Section -->
+  <section id="history-tab" class="hidden">
+    <h2>History & Summary</h2>
+    <div id="summary-view" class="card">
+      <!-- Summary stats will be injected here -->
+    </div>
+    <div id="entries-list">
+      <!-- Past entries will be injected here -->
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
