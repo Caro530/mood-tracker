@@ -42,7 +42,8 @@
     .streak { display: flex; align-items: center; font-size: 20px; font-weight: 900; color: #FF9600; }
     .streak i { font-size: 28px; margin-right: 5px; color: #FF9600; }
     
-    .mascot-avatar { width: 50px; height: 50px; object-fit: cover; border-radius: 16px; background: #78D6E0; border: 2px solid var(--text); box-shadow: 0 4px 0 var(--text); }
+    /* Using an online SVG cat with a yellow background */
+    .mascot-avatar { width: 50px; height: 50px; object-fit: cover; border-radius: 16px; background: #FFC800; border: 2px solid var(--text); box-shadow: 0 4px 0 var(--text); padding: 4px; box-sizing: border-box; }
     .settings-icon { font-size: 32px; color: var(--text-light); cursor: pointer; transition: 0.2s;}
     .settings-icon:active { transform: rotate(45deg); }
 
@@ -135,8 +136,8 @@
 
   <div class="top-bar">
     <div class="streak"><i class="ph-duotone ph-fire"></i> <span id="streak-count">0</span></div>
-    <!-- Using your Cat image here -->
-    <img src="mascot.png" class="mascot-avatar" alt="Cat Mascot">
+    <!-- Online Grumpy Cat Vector! -->
+    <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f63e.svg" class="mascot-avatar" alt="Cat Mascot">
     <i class="ph-duotone ph-gear-six settings-icon"></i>
   </div>
 
