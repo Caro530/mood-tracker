@@ -6,7 +6,7 @@
   <title>Mood Tracker</title>
   <link rel="manifest" href="manifest.json">
   
-  <!-- Premium Phosphor Icons (Duotone for Gamified Look) -->
+  <!-- Premium Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   
   <style>
@@ -21,6 +21,8 @@
       --gray-btn: #E5E5E5;
       --gray-shadow: #CECECE;
       --accent-blue: #1CB0F6;
+      --danger: #FF4B4B;
+      --danger-shadow: #EA1515;
     }
     
     body { 
@@ -34,7 +36,7 @@
     h2 { font-size: 24px; font-weight: 900; text-align: center; margin-bottom: 25px; }
     h3 { font-size: 20px; font-weight: 800; border-bottom: 2px solid var(--gray-btn); padding-bottom: 10px; margin-top: 30px;}
 
-    /* Top Global Header (Streak & Cat Mascot) */
+    /* Top Global Header */
     .top-bar {
       display: flex; justify-content: space-between; align-items: center;
       padding: 15px 20px; border-bottom: 2px solid var(--gray-btn); background: #fff; z-index: 10;
@@ -42,12 +44,11 @@
     .streak { display: flex; align-items: center; font-size: 20px; font-weight: 900; color: #FF9600; }
     .streak i { font-size: 28px; margin-right: 5px; color: #FF9600; }
     
-    /* Using an online SVG cat with a yellow background */
     .mascot-avatar { width: 50px; height: 50px; object-fit: cover; border-radius: 16px; background: #FFC800; border: 2px solid var(--text); box-shadow: 0 4px 0 var(--text); padding: 4px; box-sizing: border-box; }
     .settings-icon { font-size: 32px; color: var(--text-light); cursor: pointer; transition: 0.2s;}
-    .settings-icon:active { transform: rotate(45deg); }
+    .settings-icon:active { transform: rotate(45deg); color: var(--text); }
 
-    /* --- TAB 1: CALENDAR & STATS --- */
+    /* Calendar */
     .calendar-header { display: flex; justify-content: space-between; align-items: center; font-weight: 800; font-size: 18px; margin-bottom: 15px;}
     .calendar-nav-btn { color: var(--text-light); cursor: pointer; user-select: none; font-size: 24px; transition: 0.2s;}
     .calendar-nav-btn:active { transform: scale(0.8); color: var(--accent-blue); }
@@ -64,12 +65,13 @@
     .day-btn.has-data { color: white; border-bottom-width: 4px; }
     .day-btn.selected { border: 3px solid var(--accent-blue); transform: scale(1.1); z-index: 2; }
 
+    /* Stats */
     .stat-row { display: flex; align-items: center; margin-bottom: 10px; }
     .stat-label { width: 40px; font-weight: 800; color: var(--text-light); font-size: 18px; }
     .stat-bar-bg { flex: 1; height: 16px; background: var(--gray-btn); border-radius: 10px; overflow: hidden; margin-right: 10px;}
     .stat-bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease-out; }
 
-    /* --- TAB 2: WIZARD & PROGRESS BAR --- */
+    /* Wizard */
     .wizard-header { margin-bottom: 30px; }
     .progress-container { background: var(--gray-btn); height: 20px; border-radius: 12px; width: 100%; position: relative; overflow: hidden; }
     .progress-fill { background: var(--primary); height: 100%; width: 33.3%; border-radius: 12px; transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); position: relative;}
@@ -110,6 +112,7 @@
     .btn i { font-size: 24px; }
     .btn:active { transform: translateY(4px); border-bottom-width: 2px; margin-top: 4px; }
     .btn-secondary { background: #FFFFFF; color: var(--text-light); border: 2px solid var(--gray-btn); border-bottom: 6px solid var(--gray-shadow); }
+    .btn-danger { background: var(--danger); border-bottom-color: var(--danger-shadow); }
 
     .card { 
       border: 2px solid var(--gray-btn); border-radius: 16px; padding: 20px; margin-bottom: 15px; 
@@ -118,7 +121,7 @@
     .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--gray-btn); padding-bottom: 10px; margin-bottom: 10px; font-weight: 800; color: var(--text-light);}
     .mood-badge { color: white; padding: 6px 14px; border-radius: 12px; font-weight: 900; font-size: 16px; border-bottom: 3px solid rgba(0,0,0,0.2); display: flex; align-items: center; gap: 6px;}
 
-    /* --- BOTTOM NAV --- */
+    /* Navigation */
     nav {
       position: fixed; bottom: 0; width: 100%; background: #FFFFFF; display: flex; justify-content: space-around;
       border-top: 2px solid var(--gray-btn); padding: 10px 0 calc(10px + env(safe-area-inset-bottom)) 0; z-index: 100;
@@ -130,22 +133,34 @@
     .nav-btn i { font-size: 34px; transition: 0.2s; }
     .nav-btn.active { color: var(--accent-blue); background: #E1F3FE; border: 2px solid #BCE3FD; transform: scale(1.1); }
     
+    /* Settings Modal */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center; z-index: 999; opacity: 0; pointer-events: none; transition: 0.2s;
+    }
+    .modal-overlay.active { opacity: 1; pointer-events: all; }
+    .modal-content {
+      background: white; padding: 30px; border-radius: 24px; width: 80%; max-width: 320px;
+      transform: scale(0.8); transition: 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); border: 2px solid var(--gray-btn); border-bottom: 8px solid var(--gray-shadow);
+    }
+    .modal-overlay.active .modal-content { transform: scale(1); }
+
   </style>
 </head>
 <body>
 
   <div class="top-bar">
     <div class="streak"><i class="ph-duotone ph-fire"></i> <span id="streak-count">0</span></div>
-    <!-- Online Grumpy Cat Vector! -->
     <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f63e.svg" class="mascot-avatar" alt="Cat Mascot">
-    <i class="ph-duotone ph-gear-six settings-icon"></i>
+    <i class="ph-duotone ph-gear-six settings-icon" onclick="openSettings()"></i>
   </div>
 
   <main>
+    <!-- TAB 1: CALENDAR -->
     <section id="tab-calendar">
       <div class="calendar-header">
         <i class="ph-bold ph-caret-left calendar-nav-btn" onclick="changeMonth(-1)"></i>
-        <span id="month-label" style="font-size: 20px;">April 2026</span>
+        <span id="month-label" style="font-size: 20px;"></span>
         <i class="ph-bold ph-caret-right calendar-nav-btn" onclick="changeMonth(1)"></i>
       </div>
       <div class="weekdays">
@@ -165,6 +180,7 @@
       </div>
     </section>
 
+    <!-- TAB 2: LOG -->
     <section id="tab-log" class="hidden">
       <div class="wizard-header">
         <div class="progress-container"><div class="progress-fill" id="progress-bar"></div></div>
@@ -201,6 +217,7 @@
       </div>
     </section>
 
+    <!-- TAB 3: PROFILE -->
     <section id="tab-profile" class="hidden">
       <h2>Your Profile</h2>
       <div class="card" style="text-align: center;">
@@ -216,6 +233,16 @@
     <button id="nav-log" class="nav-btn" onclick="switchTab('log')"><i class="ph-duotone ph-plus-circle"></i></button>
     <button id="nav-profile" class="nav-btn" onclick="switchTab('profile')"><i class="ph-duotone ph-user"></i></button>
   </nav>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h2 style="margin-top: 0;">Settings</h2>
+      <button class="btn" onclick="exportData()"><i class="ph-duotone ph-download-simple"></i> Export Data</button>
+      <button class="btn btn-danger" onclick="clearData()"><i class="ph-duotone ph-trash"></i> Delete All Data</button>
+      <button class="btn btn-secondary" onclick="closeSettings()">Close</button>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
