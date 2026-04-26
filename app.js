@@ -1,220 +1,221 @@
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
-
-let entries = JSON.parse(localStorage.getItem('moodEntries')) || [];
-let currentMood = null;
-
-let currentDate = new Date();
-let selectedDateString = new Date().toISOString().split('T')[0];
-
-const colors = {
-  1: "#FF4B4B", 2: "#FF6B3B", 3: "#FF8B2B", 4: "#FFAA1B", 5: "#FFC800",
-  6: "#E1D700", 7: "#C4E500", 8: "#A6F300", 9: "#7CE000", 10: "#58CC02"
-};
-
-updateStreak();
-renderCalendar();
-updateStats();
-
-function switchTab(tab) {
-  ['calendar', 'log', 'profile'].forEach(t => {
-    document.getElementById(`tab-${t}`).classList.add('hidden');
-    document.getElementById(`nav-${t}`).classList.remove('active');
-  });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mood Tracker</title>
+  <link rel="manifest" href="manifest.json">
   
-  document.getElementById(`tab-${tab}`).classList.remove('hidden');
-  document.getElementById(`nav-${tab}`).classList.add('active');
-
-  if (tab === 'calendar') {
-    renderCalendar();
-    updateStats();
-  } else if (tab === 'log') {
-    nextStep(1);
-  } else if (tab === 'profile') {
-    document.getElementById('total-logs').innerText = entries.length;
-  }
-}
-
-function nextStep(step) {
-  [1, 2, 3].forEach(s => document.getElementById(`step-${s}`).classList.add('hidden'));
-  document.getElementById(`step-${step}`).classList.remove('hidden');
-  document.getElementById('progress-bar').style.width = `${(step / 3) * 100}%`;
-}
-
-function selectMood(mood) {
-  currentMood = mood;
-  setTimeout(() => nextStep(2), 150);
-}
-
-function saveEntry() {
-  const happened = document.getElementById('happened').value.trim();
-  const why = document.getElementById('why').value.trim();
+  <!-- Premium Phosphor Icons (Duotone for Gamified Look) -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
   
-  if (!happened || !why) return alert("Fill in the text boxes!");
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
 
-  const now = new Date();
-  const localDateString = now.getFullYear() + '-' + 
-    String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-    String(now.getDate()).padStart(2, '0');
-
-  entries.push({
-    id: Date.now(),
-    date: localDateString, 
-    timestamp: now.getTime(),
-    mood: currentMood, happened, why
-  });
-
-  localStorage.setItem('moodEntries', JSON.stringify(entries));
-  
-  currentMood = null;
-  document.getElementById('happened').value = '';
-  document.getElementById('why').value = '';
-  
-  updateStreak();
-  switchTab('calendar');
-}
-
-function changeMonth(dir) {
-  currentDate.setMonth(currentDate.getMonth() + dir);
-  renderCalendar();
-}
-
-function renderCalendar() {
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  
-  document.getElementById('month-label').innerText = new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' });
-  
-  const grid = document.getElementById('calendar-grid');
-  grid.innerHTML = '';
-  
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  
-  for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
-  
-  for(let d=1; d<=daysInMonth; d++) {
-    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    :root {
+      --primary: #58CC02;       
+      --primary-shadow: #58A700;
+      --bg: #FFFFFF;
+      --text: #3C3C3C;
+      --text-light: #AFB0B3;
+      --gray-btn: #E5E5E5;
+      --gray-shadow: #CECECE;
+      --accent-blue: #1CB0F6;
+    }
     
-    const dayLogs = entries.filter(e => e.date === dateStr);
-    let avg = 0;
-    if (dayLogs.length > 0) {
-      const sum = dayLogs.reduce((a, b) => a + parseInt(b.mood), 0);
-      avg = Math.round(sum / dayLogs.length);
+    body { 
+      font-family: 'Nunito', sans-serif; 
+      margin: 0; padding: 0; background-color: var(--bg); color: var(--text);
+      display: flex; flex-direction: column; height: 100vh; overflow: hidden;
     }
 
-    const isSelected = dateStr === selectedDateString ? 'selected' : '';
-    const hasDataClass = avg > 0 ? 'has-data' : '';
-    const bgStyle = avg > 0 ? `background-color: ${colors[avg]}; border-bottom-color: rgba(0,0,0,0.2);` : '';
+    .hidden { display: none !important; }
+    main { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 100px; }
+    h2 { font-size: 24px; font-weight: 900; text-align: center; margin-bottom: 25px; }
+    h3 { font-size: 20px; font-weight: 800; border-bottom: 2px solid var(--gray-btn); padding-bottom: 10px; margin-top: 30px;}
 
-    grid.innerHTML += `
-      <div class="day-btn ${hasDataClass} ${isSelected}" style="${bgStyle}" onclick="selectDate('${dateStr}')">
-        ${d}
-      </div>`;
-  }
-  
-  updateDailyLogs(selectedDateString); 
-}
+    /* Top Global Header (Streak & Cat Mascot) */
+    .top-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 15px 20px; border-bottom: 2px solid var(--gray-btn); background: #fff; z-index: 10;
+    }
+    .streak { display: flex; align-items: center; font-size: 20px; font-weight: 900; color: #FF9600; }
+    .streak i { font-size: 28px; margin-right: 5px; color: #FF9600; }
+    
+    .mascot-avatar { width: 50px; height: 50px; object-fit: cover; border-radius: 16px; background: #78D6E0; border: 2px solid var(--text); box-shadow: 0 4px 0 var(--text); }
+    .settings-icon { font-size: 32px; color: var(--text-light); cursor: pointer; transition: 0.2s;}
+    .settings-icon:active { transform: rotate(45deg); }
 
-function selectDate(dateStr) {
-  selectedDateString = dateStr;
-  renderCalendar(); 
-}
+    /* --- TAB 1: CALENDAR & STATS --- */
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; font-weight: 800; font-size: 18px; margin-bottom: 15px;}
+    .calendar-nav-btn { color: var(--text-light); cursor: pointer; user-select: none; font-size: 24px; transition: 0.2s;}
+    .calendar-nav-btn:active { transform: scale(0.8); color: var(--accent-blue); }
+    .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: 800; color: var(--text-light); font-size: 14px; margin-bottom: 10px;}
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 20px;}
+    
+    .day-btn {
+      aspect-ratio: 1; border-radius: 12px; font-size: 16px; font-weight: 800;
+      border: 2px solid transparent; display: flex; align-items: center; justify-content: center;
+      background: var(--gray-btn); border-bottom: 4px solid var(--gray-shadow); color: var(--text-light);
+      cursor: pointer; transition: 0.1s;
+    }
+    .day-btn:active { transform: translateY(3px); border-bottom-width: 1px; margin-top: 3px; }
+    .day-btn.has-data { color: white; border-bottom-width: 4px; }
+    .day-btn.selected { border: 3px solid var(--accent-blue); transform: scale(1.1); z-index: 2; }
 
-function updateDailyLogs(dateStr) {
-  const list = document.getElementById('daily-logs-list');
-  const d = new Date(dateStr);
-  const localD = new Date(d.getTime() + Math.abs(d.getTimezoneOffset()*60000));
-  
-  document.getElementById('selected-date-label').innerText = `Logs for ${localD.toLocaleDateString('default', {month:'short', day:'numeric'})}`;
-  
-  const dayLogs = entries.filter(e => e.date === dateStr);
-  
-  if (dayLogs.length === 0) {
-    // USING THE ANGRY MASCOT FOR EMPTY STATE
-    list.innerHTML = `
-      <div style="text-align:center; padding: 20px;">
-        <img src="mascot-angry.png" alt="Angry Mascot" style="width: 120px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
-        <p style="color: #AFB0B3; font-weight:900; font-size: 18px; margin-top: 10px;">I'm waiting for your log!</p>
-      </div>`;
-    return;
-  }
+    .stat-row { display: flex; align-items: center; margin-bottom: 10px; }
+    .stat-label { width: 40px; font-weight: 800; color: var(--text-light); font-size: 18px; }
+    .stat-bar-bg { flex: 1; height: 16px; background: var(--gray-btn); border-radius: 10px; overflow: hidden; margin-right: 10px;}
+    .stat-bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease-out; }
 
-  list.innerHTML = dayLogs.map(entry => {
-    const time = new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    return `
+    /* --- TAB 2: WIZARD & PROGRESS BAR --- */
+    .wizard-header { margin-bottom: 30px; }
+    .progress-container { background: var(--gray-btn); height: 20px; border-radius: 12px; width: 100%; position: relative; overflow: hidden; }
+    .progress-fill { background: var(--primary); height: 100%; width: 33.3%; border-radius: 12px; transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); position: relative;}
+    .progress-fill::after { content: ''; position: absolute; top: 4px; left: 10px; right: 10px; height: 5px; background: rgba(255,255,255,0.3); border-radius: 5px; }
+
+    .mood-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+    .mood-btn {
+      aspect-ratio: 1; border-radius: 16px; border: 2px solid transparent; border-bottom-width: 6px;
+      font-size: 22px; font-weight: 900; color: white; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: 0.1s; animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+    }
+    @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+    .mood-btn:active { transform: translateY(4px); border-bottom-width: 2px; margin-top: 4px; }
+    
+    .m1 { background: #FF4B4B; border-bottom-color: #EA1515; }
+    .m2 { background: #FF6B3B; border-bottom-color: #E24414; }
+    .m3 { background: #FF8B2B; border-bottom-color: #DE6105; }
+    .m4 { background: #FFAA1B; border-bottom-color: #E28800; }
+    .m5 { background: #FFC800; border-bottom-color: #DFA600; }
+    .m6 { background: #E1D700; border-bottom-color: #C2B800; }
+    .m7 { background: #C4E500; border-bottom-color: #A4C400; }
+    .m8 { background: #A6F300; border-bottom-color: #85CA00; }
+    .m9 { background: #7CE000; border-bottom-color: #63B600; }
+    .m10{ background: #58CC02; border-bottom-color: #58A700; }
+
+    textarea {
+      width: 100%; padding: 20px; border-radius: 16px; border: 2px solid var(--gray-btn);
+      background: #F7F7F7; font-size: 18px; font-weight: 800; color: var(--text); font-family: 'Nunito', sans-serif;
+      box-sizing: border-box; resize: none; margin-bottom: 20px; transition: 0.2s;
+    }
+    textarea:focus { outline: none; border-color: var(--primary); background: #FFFFFF; }
+    
+    .btn {
+      background: var(--primary); color: white; padding: 18px; border-radius: 16px; border: none;
+      border-bottom: 6px solid var(--primary-shadow); font-size: 18px; font-weight: 900; text-transform: uppercase;
+      width: 100%; cursor: pointer; transition: 0.1s; letter-spacing: 1px; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 8px;
+    }
+    .btn i { font-size: 24px; }
+    .btn:active { transform: translateY(4px); border-bottom-width: 2px; margin-top: 4px; }
+    .btn-secondary { background: #FFFFFF; color: var(--text-light); border: 2px solid var(--gray-btn); border-bottom: 6px solid var(--gray-shadow); }
+
+    .card { 
+      border: 2px solid var(--gray-btn); border-radius: 16px; padding: 20px; margin-bottom: 15px; 
+      border-bottom: 6px solid var(--gray-shadow); background: #FFFFFF; animation: popIn 0.3s;
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--gray-btn); padding-bottom: 10px; margin-bottom: 10px; font-weight: 800; color: var(--text-light);}
+    .mood-badge { color: white; padding: 6px 14px; border-radius: 12px; font-weight: 900; font-size: 16px; border-bottom: 3px solid rgba(0,0,0,0.2); display: flex; align-items: center; gap: 6px;}
+
+    /* --- BOTTOM NAV --- */
+    nav {
+      position: fixed; bottom: 0; width: 100%; background: #FFFFFF; display: flex; justify-content: space-around;
+      border-top: 2px solid var(--gray-btn); padding: 10px 0 calc(10px + env(safe-area-inset-bottom)) 0; z-index: 100;
+    }
+    .nav-btn {
+      padding: 10px 25px; border: none; background: transparent; 
+      cursor: pointer; transition: 0.2s; border-radius: 20px; color: var(--text-light);
+    }
+    .nav-btn i { font-size: 34px; transition: 0.2s; }
+    .nav-btn.active { color: var(--accent-blue); background: #E1F3FE; border: 2px solid #BCE3FD; transform: scale(1.1); }
+    
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div class="streak"><i class="ph-duotone ph-fire"></i> <span id="streak-count">0</span></div>
+    <!-- Using your Cat image here -->
+    <img src="mascot.png" class="mascot-avatar" alt="Cat Mascot">
+    <i class="ph-duotone ph-gear-six settings-icon"></i>
+  </div>
+
+  <main>
+    <section id="tab-calendar">
+      <div class="calendar-header">
+        <i class="ph-bold ph-caret-left calendar-nav-btn" onclick="changeMonth(-1)"></i>
+        <span id="month-label" style="font-size: 20px;">April 2026</span>
+        <i class="ph-bold ph-caret-right calendar-nav-btn" onclick="changeMonth(1)"></i>
+      </div>
+      <div class="weekdays">
+        <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+      </div>
+      <div id="calendar-grid" class="calendar-grid"></div>
+
+      <h3 id="selected-date-label">Today's Logs</h3>
+      <div id="daily-logs-list"></div>
+
+      <h3>Monthly Visuals</h3>
       <div class="card">
-        <div class="card-header">
-          <span>${time}</span>
-          <span class="mood-badge" style="background:${colors[entry.mood]}">${entry.mood} / 10</span>
-        </div>
-        <p style="font-weight:800; margin-bottom:5px; margin-top:0;">What happened:</p>
-        <p style="margin-top:0; color:#666;">${entry.happened}</p>
-        <p style="font-weight:800; margin-bottom:5px;">Why:</p>
-        <p style="margin-top:0; color:#666;">${entry.why}</p>
+        <p style="font-weight:800; text-align:center; color:var(--text-light); margin-top:0;">
+          <i class="ph-duotone ph-chart-bar" style="vertical-align: middle; margin-right: 5px;"></i> Mood Distribution
+        </p>
+        <div id="visual-stats"></div>
       </div>
-    `;
-  }).join('');
-}
+    </section>
 
-function updateStats() {
-  const container = document.getElementById('visual-stats');
-  container.innerHTML = '';
-  
-  if(entries.length === 0) {
-    container.innerHTML = `<p style="text-align:center; color: #AFB0B3; font-weight:800;">Log moods to see your data!</p>`;
-    return;
-  }
-
-  let counts = { 'Low (1-3)': 0, 'Med (4-7)': 0, 'High (8-10)': 0 };
-  let colorsMap = { 'Low (1-3)': '#FF4B4B', 'Med (4-7)': '#FFC800', 'High (8-10)': '#58CC02' };
-  
-  entries.forEach(e => {
-    if(e.mood <= 3) counts['Low (1-3)']++;
-    else if(e.mood <= 7) counts['Med (4-7)']++;
-    else counts['High (8-10)']++;
-  });
-
-  const max = Math.max(...Object.values(counts));
-
-  for (let [label, count] of Object.entries(counts)) {
-    const width = max === 0 ? 0 : (count / entries.length) * 100;
-    container.innerHTML += `
-      <div class="stat-row">
-        <div class="stat-label">${label.split(' ')[0]}</div>
-        <div class="stat-bar-bg">
-          <div class="stat-bar-fill" style="width: ${width}%; background: ${colorsMap[label]};"></div>
-        </div>
-        <div style="font-weight:900; width: 30px; text-align:right;">${count}</div>
+    <section id="tab-log" class="hidden">
+      <div class="wizard-header">
+        <div class="progress-container"><div class="progress-fill" id="progress-bar"></div></div>
       </div>
-    `;
-  }
-}
 
-function updateStreak() {
-  if (entries.length === 0) return;
-  const uniqueDates = [...new Set(entries.map(e => e.date))].sort().reverse();
-  let streak = 0;
-  let checkDate = new Date();
-  
-  for (let i = 0; i < uniqueDates.length; i++) {
-    const dStr = checkDate.getFullYear() + '-' + String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + String(checkDate.getDate()).padStart(2, '0');
-    if (uniqueDates.includes(dStr)) {
-      streak++;
-      checkDate.setDate(checkDate.getDate() - 1);
-    } else {
-      if (i === 0) {
-         checkDate.setDate(checkDate.getDate() - 1);
-         const yStr = checkDate.getFullYear() + '-' + String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + String(checkDate.getDate()).padStart(2, '0');
-         if (uniqueDates.includes(yStr)) {
-            streak++;
-            checkDate.setDate(checkDate.getDate() - 1);
-            continue;
-         }
-      }
-      break;
-    }
-  }
-  document.getElementById('streak-count').innerText = streak;
-}
+      <div id="step-1">
+        <h2>How are you feeling?</h2>
+        <div class="mood-grid">
+          <button class="mood-btn m1" onclick="selectMood(1)">1</button>
+          <button class="mood-btn m2" onclick="selectMood(2)">2</button>
+          <button class="mood-btn m3" onclick="selectMood(3)">3</button>
+          <button class="mood-btn m4" onclick="selectMood(4)">4</button>
+          <button class="mood-btn m5" onclick="selectMood(5)">5</button>
+          <button class="mood-btn m6" onclick="selectMood(6)">6</button>
+          <button class="mood-btn m7" onclick="selectMood(7)">7</button>
+          <button class="mood-btn m8" onclick="selectMood(8)">8</button>
+          <button class="mood-btn m9" onclick="selectMood(9)">9</button>
+          <button class="mood-btn m10" onclick="selectMood(10)">10</button>
+        </div>
+      </div>
+
+      <div id="step-2" class="hidden">
+        <h2>What's going on?</h2>
+        <textarea id="happened" rows="6" placeholder="I am..."></textarea>
+        <button class="btn" onclick="nextStep(3)">Continue <i class="ph-bold ph-arrow-right"></i></button>
+        <button class="btn btn-secondary" onclick="nextStep(1)">Go Back</button>
+      </div>
+
+      <div id="step-3" class="hidden">
+        <h2>Why do you feel this way?</h2>
+        <textarea id="why" rows="6" placeholder="Because..."></textarea>
+        <button class="btn" onclick="saveEntry()"><i class="ph-duotone ph-check-circle"></i> Finish</button>
+        <button class="btn btn-secondary" onclick="nextStep(2)">Go Back</button>
+      </div>
+    </section>
+
+    <section id="tab-profile" class="hidden">
+      <h2>Your Profile</h2>
+      <div class="card" style="text-align: center;">
+        <i class="ph-duotone ph-trophy" style="font-size: 80px; color: #FFC800;"></i>
+        <h3 style="margin-top:10px; border:none;">Total Check-ins</h3>
+        <h1 style="color: var(--accent-blue); font-size: 40px; margin:0;" id="total-logs">0</h1>
+      </div>
+    </section>
+  </main>
+
+  <nav>
+    <button id="nav-calendar" class="nav-btn active" onclick="switchTab('calendar')"><i class="ph-duotone ph-calendar-blank"></i></button>
+    <button id="nav-log" class="nav-btn" onclick="switchTab('log')"><i class="ph-duotone ph-plus-circle"></i></button>
+    <button id="nav-profile" class="nav-btn" onclick="switchTab('profile')"><i class="ph-duotone ph-user"></i></button>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>
